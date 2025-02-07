@@ -4,7 +4,7 @@ build:
 	@zig build
 
 run: build
-	@./zig-out/AlienShips.exe
+	@zig-out/bin/AlienShips.exe
 
 clean:
 	rm -f $(APP_NAME)
