@@ -4,6 +4,7 @@ const player = @import("entities/player.zig");
 const bullet = @import("entities/bullet.zig");
 const health = @import("entities/health.zig");
 const enemy = @import("entities/enemy.zig");
+const shield = @import("entities/shield.zig");
 
 const Game = struct {
     player: player.Player,
@@ -11,6 +12,7 @@ const Game = struct {
     health: health.Health,
     enemies: [6]enemy.Enemy,
     enemyBullets: [100]bullet.Bullet,
+    shield: shield.Shield,
 
     random: std.rand.DefaultPrng,
 };
@@ -29,9 +31,18 @@ pub fn main() !void {
             .mouseX = 0,
             .mouseY = 0,
             .health = 100,
+            .shield = false,
+            .shieldTimer = 500,
         },
         .bullets = std.mem.zeroes([100]bullet.Bullet),
         .health = health.Health{
+            .x = 0,
+            .y = 0,
+            .speed = 0,
+            .active = false,
+            .delay = 0,
+        },
+        .shield = shield.Shield{
             .x = 0,
             .y = 0,
             .speed = 0,
@@ -99,13 +110,26 @@ fn draw(g: *Game) void {
     if (!g.health.active) {
         g.health.x = g.random.random().float(f32) * 800; // Assuming the screen width is 800
         g.health.y = 0;
-        g.health.speed = 5;
+        g.health.speed = 3;
         g.health.delay = 500;
         g.health.active = true;
     }
 
     if (g.health.active) {
         rl.drawCircle(@intFromFloat(g.health.x), @intFromFloat(g.health.y - 10), 10, rl.Color.green);
+    }
+
+    // Draw shield from the top of the screen
+    if (!g.shield.active) {
+        g.shield.x = g.random.random().float(f32) * 800; // Assuming the screen width is 800
+        g.shield.y = 0;
+        g.shield.speed = 3;
+        g.shield.delay = 600;
+        g.shield.active = true;
+    }
+
+    if (g.shield.active) {
+        rl.drawCircle(@intFromFloat(g.shield.x), @intFromFloat(g.shield.y - 10), 10, rl.Color.blue);
     }
 }
 
@@ -160,6 +184,18 @@ fn update(g: *Game) void {
             g.health.y += g.health.speed;
             if (g.health.y > 600) {
                 g.health.active = false;
+            }
+        }
+    }
+
+    // Move shield
+    if (g.shield.active) {
+        if (g.shield.delay > 0) {
+            g.shield.delay -= 1;
+        } else {
+            g.shield.y += g.shield.speed;
+            if (g.shield.y > 600) {
+                g.shield.active = false;
             }
         }
     }
@@ -222,11 +258,29 @@ fn update(g: *Game) void {
         }
     }
 
+    // Check for collision between player and shield
+    if (g.shield.active) {
+        if (g.player.x < g.shield.x + 10 and g.player.x + 30 > g.shield.x and g.player.y < g.shield.y + 10 and g.player.y + 15 > g.shield.y) {
+            g.shield.active = false;
+            g.player.shield = true;
+        }
+    }
+
+    if (g.player.shield) {
+        g.player.shieldTimer -= 1;
+        if (g.player.shieldTimer == 0) {
+            g.player.shield = false;
+            g.player.shieldTimer = 10;
+        }
+    }
+
     // Check for collision between player and enemy
     for (&g.enemies) |*e| {
         if (e.active) {
             if (g.player.x < e.x + 20 and g.player.x + 30 > e.x and g.player.y < e.y + 20 and g.player.y + 15 > e.y) {
-                g.player.health -= 10;
+                if (!g.player.shield) {
+                    g.player.health -= 10;
+                }
                 e.active = false;
                 e.respawnDelay = 300; // Set respawn delay after enemy dies
             }
@@ -252,7 +306,9 @@ fn update(g: *Game) void {
     for (&g.enemyBullets) |*b| {
         if (b.speed > 0) {
             if (g.player.x < b.x + 5 and g.player.x + 30 > b.x and g.player.y < b.y + 5 and g.player.y + 15 > b.y) {
-                g.player.health -= 10;
+                if (!g.player.shield) {
+                    g.player.health -= 10;
+                }
                 b.speed = 0;
             }
         }

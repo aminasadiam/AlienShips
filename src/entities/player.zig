@@ -4,4 +4,6 @@ pub const Player = struct {
     mouseX: f32,
     mouseY: f32,
     health: i32,
+    shield: bool,
+    shieldTimer: u32,
 };
