@@ -3,11 +3,14 @@ const rl = @import("raylib");
 const player = @import("entities/player.zig");
 const bullet = @import("entities/bullet.zig");
 const health = @import("entities/health.zig");
+const enemy = @import("entities/enemy.zig");
 
 const Game = struct {
     player: player.Player,
     bullets: [100]bullet.Bullet,
     health: health.Health,
+    enemies: [6]enemy.Enemy,
+    enemyBullets: [100]bullet.Bullet,
 
     random: std.rand.DefaultPrng,
 };
@@ -27,7 +30,6 @@ pub fn main() !void {
             .mouseY = 0,
             .health = 100,
         },
-        // null is used to initialize the array with empty bullets
         .bullets = std.mem.zeroes([100]bullet.Bullet),
         .health = health.Health{
             .x = 0,
@@ -36,8 +38,22 @@ pub fn main() !void {
             .active = false,
             .delay = 0,
         },
+        .enemies = undefined,
+        .enemyBullets = std.mem.zeroes([100]bullet.Bullet),
+
         .random = random,
     };
+
+    // Initialize enemies with random spawn delays
+    for (&game.enemies) |*e| {
+        e.x = game.random.random().float(f32) * 800;
+        e.y = game.random.random().float(f32) * 600;
+        e.speed = 1;
+        e.active = false;
+        e.shootDelay = @rem(game.random.random().int(i32), 300); // Random shoot delay
+        e.spawnDelay = @rem(game.random.random().int(i32), 600); // Random spawn delay
+        e.respawnDelay = 0; // Initialize respawn delay to zero
+    }
 
     while (!rl.windowShouldClose()) {
         update(&game);
@@ -62,6 +78,20 @@ fn draw(g: *Game) void {
     for (g.bullets) |b| {
         if (b.speed > 0) {
             rl.drawCircle(@intFromFloat(b.x), @intFromFloat(b.y), 5, rl.Color.yellow);
+        }
+    }
+
+    // Draw enemies
+    for (g.enemies) |e| {
+        if (e.active) {
+            rl.drawCircle(@intFromFloat(e.x), @intFromFloat(e.y), 20, rl.Color.red);
+        }
+    }
+
+    // Draw enemy bullets
+    for (g.enemyBullets) |b| {
+        if (b.speed > 0) {
+            rl.drawCircle(@intFromFloat(b.x), @intFromFloat(b.y), 5, rl.Color.orange);
         }
     }
 
@@ -123,16 +153,62 @@ fn update(g: *Game) void {
     }
 
     // Move health
-    if (g.player.health < 100) {
-        if (g.health.active) {
-            if (g.health.delay > 0) {
-                g.health.delay -= 1;
+    if (g.health.active) {
+        if (g.health.delay > 0) {
+            g.health.delay -= 1;
+        } else {
+            g.health.y += g.health.speed;
+            if (g.health.y > 600) {
+                g.health.active = false;
+            }
+        }
+    }
+
+    // Move enemies and make them shoot bullets
+    for (&g.enemies) |*e| {
+        if (e.respawnDelay > 0) {
+            e.respawnDelay -= 1;
+        } else if (e.spawnDelay > 0) {
+            e.spawnDelay -= 1;
+        } else if (!e.active) {
+            e.active = true;
+            e.x = g.random.random().float(f32) * 800;
+            e.y = g.random.random().float(f32) * 600;
+        }
+
+        if (e.active) {
+            const dx = g.player.x - e.x;
+            const dy = g.player.y - e.y;
+            const angle = std.math.atan2(dy, dx);
+            e.x += e.speed * std.math.cos(angle);
+            e.y += e.speed * std.math.sin(angle);
+
+            if (e.shootDelay > 0) {
+                e.shootDelay -= 1;
             } else {
-                g.health.y += g.health.speed;
-                if (g.health.y > 600) {
-                    g.health.active = false;
+                for (&g.enemyBullets) |*b| {
+                    if (b.speed == 0) {
+                        b.x = e.x;
+                        b.y = e.y;
+                        b.angle = angle * (180.0 / std.math.pi);
+                        b.speed = 5;
+                        e.shootDelay = @rem(g.random.random().int(i32), 120); // Reset shoot delay
+                        break;
+                    }
                 }
             }
+        }
+    }
+
+    // Move enemy bullets
+    for (&g.enemyBullets) |*b| {
+        if (b.speed > 0) {
+            b.x += b.speed * std.math.cos(b.angle * (std.math.pi / 180.0));
+            b.y += b.speed * std.math.sin(b.angle * (std.math.pi / 180.0));
+        }
+
+        if (b.x < 0 or b.x > 800 or b.y < 0 or b.y > 600) {
+            b.speed = 0;
         }
     }
 
@@ -140,8 +216,44 @@ fn update(g: *Game) void {
     if (g.health.active) {
         if (g.player.x < g.health.x + 10 and g.player.x + 30 > g.health.x and g.player.y < g.health.y + 10 and g.player.y + 15 > g.health.y) {
             if (g.player.health < 100) {
-                g.player.health += 10;
+                g.player.health += 30;
                 g.health.active = false;
+            }
+        }
+    }
+
+    // Check for collision between player and enemy
+    for (&g.enemies) |*e| {
+        if (e.active) {
+            if (g.player.x < e.x + 20 and g.player.x + 30 > e.x and g.player.y < e.y + 20 and g.player.y + 15 > e.y) {
+                g.player.health -= 10;
+                e.active = false;
+                e.respawnDelay = 300; // Set respawn delay after enemy dies
+            }
+        }
+    }
+
+    // Check for collision between player bullets and enemies
+    for (&g.bullets) |*b| {
+        if (b.speed > 0) {
+            for (&g.enemies) |*e| {
+                if (e.active) {
+                    if (b.x < e.x + 20 and b.x > e.x and b.y < e.y + 20 and b.y > e.y) {
+                        e.active = false;
+                        b.speed = 0;
+                        e.respawnDelay = 300; // Set respawn delay after enemy dies
+                    }
+                }
+            }
+        }
+    }
+
+    // Check for collision between enemy bullets and player
+    for (&g.enemyBullets) |*b| {
+        if (b.speed > 0) {
+            if (g.player.x < b.x + 5 and g.player.x + 30 > b.x and g.player.y < b.y + 5 and g.player.y + 15 > b.y) {
+                g.player.health -= 10;
+                b.speed = 0;
             }
         }
     }
