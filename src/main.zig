@@ -1,30 +1,27 @@
 const std = @import("std");
 const rl = @import("raylib");
+
 const player = @import("entities/player.zig");
 const bullet = @import("entities/bullet.zig");
 const health = @import("entities/health.zig");
 const enemy = @import("entities/enemy.zig");
 const shield = @import("entities/shield.zig");
 
+const menu = @import("menu.zig");
+
 pub const Game = struct {
     player: player.Player,
     bullets: [100]bullet.Bullet,
     health: health.Health,
-    enemies: [6]enemy.Enemy,
+    enemies: [4]enemy.Enemy,
     enemyBullets: [100]bullet.Bullet,
     shield: shield.Shield,
 
     random: std.rand.DefaultPrng,
 };
 
-pub fn main() !void {
-    rl.initWindow(800, 600, "Alien Ships");
-    rl.setTargetFPS(60);
-    defer rl.closeWindow();
-
-    const random = std.rand.DefaultPrng.init(42);
-
-    var game = Game{
+pub fn init(random: std.rand.DefaultPrng) Game {
+    return Game{
         .player = player.Player{
             .x = 400,
             .y = 300,
@@ -54,39 +51,52 @@ pub fn main() !void {
 
         .random = random,
     };
+}
 
-    // Initialize enemies with random spawn delays
-    for (&game.enemies) |*e| {
-        e.x = game.random.random().float(f32) * 800;
-        e.y = game.random.random().float(f32) * 600;
-        e.speed = 1;
-        e.active = false;
-        e.shootDelay = @rem(game.random.random().int(i32), 300); // Random shoot delay
-        e.spawnDelay = @rem(game.random.random().int(i32), 600); // Random spawn delay
-        e.respawnDelay = 0; // Initialize respawn delay to zero
-    }
+pub fn main() !void {
+    rl.initWindow(800, 600, "Alien Ships");
+    rl.setTargetFPS(60);
+    defer rl.closeWindow();
+
+    const random = std.rand.DefaultPrng.init(42);
+
+    var game = init(random);
+
+    var men = menu.init();
 
     while (!rl.windowShouldClose()) {
-        rl.clearBackground(rl.Color.sky_blue);
-
-        player.draw(&game);
-        bullet.draw(&game);
-        enemy.draw(&game);
-        health.draw(&game);
-        shield.draw(&game);
-
         rl.beginDrawing();
 
-        player.update(&game);
-        bullet.update(&game);
-
-        health.update(&game);
-        shield.update(&game);
-
-        enemy.update(&game);
+        if (men.state == menu.Menu.State.Main) {
+            menu.draw(&men);
+            menu.update(&men, &game, random);
+        } else if (men.state == menu.Menu.State.InGame) {
+            start_game(&game, &men);
+        } else if (men.state == menu.Menu.State.Exit) {
+            break;
+        } else {
+            menu.draw(&men);
+            menu.update(&men, &game, random);
+        }
 
         rl.endDrawing();
     }
+}
+
+pub fn start_game(game: *Game, men: *menu.Menu) void {
+    rl.clearBackground(rl.Color.sky_blue);
+
+    player.draw(game);
+    bullet.draw(game);
+    enemy.draw(game);
+    health.draw(game);
+    shield.draw(game);
+
+    player.update(game, men);
+    bullet.update(game);
+    health.update(game);
+    shield.update(game);
+    enemy.update(game);
 }
 
 pub fn calculateRotationAngle(g: *Game) f32 {

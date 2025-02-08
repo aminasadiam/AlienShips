@@ -1,6 +1,7 @@
 const std = @import("std");
 const rl = @import("raylib");
 const main = @import("../main.zig");
+const men = @import("../menu.zig");
 
 pub const Player = struct {
     x: f32,
@@ -17,11 +18,14 @@ pub fn draw(g: *main.Game) void {
     rl.drawRectangle(10, 10, 200, 20, rl.Color.gray);
     rl.drawRectangle(10, 10, g.player.health * 2, 20, rl.Color.red);
 
+    // player health text on rectangle
+    rl.drawText("Health", 10, 10, 20, rl.Color.white);
+
     const angle = main.calculateRotationAngle(g);
     rl.drawRectanglePro(rl.Rectangle{ .x = g.player.x, .y = g.player.y, .width = 30, .height = 15 }, rl.Vector2{ .x = 15, .y = 7.5 }, angle, rl.Color.red);
 }
 
-pub fn update(g: *main.Game) void {
+pub fn update(g: *main.Game, menu: *men.Menu) void {
     // Move player
     if (rl.isKeyDown(rl.KeyboardKey.d) and g.player.x < 785) {
         g.player.x += 5;
@@ -104,5 +108,10 @@ pub fn update(g: *main.Game) void {
                 b.speed = 0;
             }
         }
+    }
+
+    // Game Over
+    if (g.player.health <= 0) {
+        menu.state = men.Menu.State.GameOver;
     }
 }
