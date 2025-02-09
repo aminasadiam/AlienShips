@@ -20,11 +20,12 @@ pub fn init() Menu {
     };
 }
 
-pub fn update(menu: *Menu, game: *main.Game, rand: std.rand.DefaultPrng) void {
+pub fn update(menu: *Menu, game: *main.Game, rand: std.rand.DefaultPrng) !void {
     if (menu.state == Menu.State.Main) {
         if (rl.isKeyPressed(rl.KeyboardKey.one)) {
+            rl.playSound(game.sound.clicked);
             menu.state = Menu.State.InGame;
-            var new_game = main.init(rand);
+            var new_game = try main.init(rand);
             // Initialize enemies with random spawn delays
             for (&new_game.enemies) |*e| {
                 e.x = new_game.random.random().float(f32) * 800;
@@ -37,20 +38,25 @@ pub fn update(menu: *Menu, game: *main.Game, rand: std.rand.DefaultPrng) void {
             }
             game.* = new_game;
         } else if (rl.isKeyPressed(rl.KeyboardKey.two)) {
+            rl.playSound(game.sound.clicked);
             menu.state = Menu.State.Instructions;
         } else if (rl.isKeyPressed(rl.KeyboardKey.three)) {
+            rl.playSound(game.sound.clicked);
             menu.state = Menu.State.Exit;
         }
     } else if (menu.state == Menu.State.GameOver) {
         if (rl.isKeyPressed(rl.KeyboardKey.one)) {
+            rl.playSound(game.sound.clicked);
             menu.state = Menu.State.Main;
         }
     } else if (menu.state == Menu.State.Instructions) {
         if (rl.isKeyPressed(rl.KeyboardKey.one)) {
+            rl.playSound(game.sound.clicked);
             menu.state = Menu.State.Main;
         }
     } else if (menu.state == Menu.State.Exit) {
         if (rl.isKeyPressed(rl.KeyboardKey.one)) {
+            rl.playSound(game.sound.clicked);
             rl.closeWindow();
         }
     }

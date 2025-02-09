@@ -34,6 +34,7 @@ pub fn update(g: *main.Game) void {
                 b.y = g.player.y;
                 b.angle = main.calculateRotationAngle(g);
                 b.speed = 10;
+                rl.playSound(g.sound.shooting);
                 break;
             }
         }

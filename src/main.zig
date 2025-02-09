@@ -6,6 +6,7 @@ const bullet = @import("entities/bullet.zig");
 const health = @import("entities/health.zig");
 const enemy = @import("entities/enemy.zig");
 const shield = @import("entities/shield.zig");
+const sound = @import("sound.zig");
 
 const menu = @import("menu.zig");
 
@@ -16,11 +17,12 @@ pub const Game = struct {
     enemies: [4]enemy.Enemy,
     enemyBullets: [100]bullet.Bullet,
     shield: shield.Shield,
+    sound: sound.Sound,
 
     random: std.rand.DefaultPrng,
 };
 
-pub fn init(random: std.rand.DefaultPrng) Game {
+pub fn init(random: std.rand.DefaultPrng) !Game {
     return Game{
         .player = player.Player{
             .x = 400,
@@ -48,6 +50,7 @@ pub fn init(random: std.rand.DefaultPrng) Game {
         },
         .enemies = undefined,
         .enemyBullets = std.mem.zeroes([100]bullet.Bullet),
+        .sound = try sound.init(),
 
         .random = random,
     };
@@ -55,12 +58,14 @@ pub fn init(random: std.rand.DefaultPrng) Game {
 
 pub fn main() !void {
     rl.initWindow(800, 600, "Alien Ships");
+    rl.initAudioDevice();
     rl.setTargetFPS(60);
+    defer rl.closeAudioDevice();
     defer rl.closeWindow();
 
     const random = std.rand.DefaultPrng.init(42);
 
-    var game = init(random);
+    var game = try init(random);
 
     var men = menu.init();
 
@@ -69,14 +74,14 @@ pub fn main() !void {
 
         if (men.state == menu.Menu.State.Main) {
             menu.draw(&men);
-            menu.update(&men, &game, random);
+            try menu.update(&men, &game, random);
         } else if (men.state == menu.Menu.State.InGame) {
             start_game(&game, &men);
         } else if (men.state == menu.Menu.State.Exit) {
             break;
         } else {
             menu.draw(&men);
-            menu.update(&men, &game, random);
+            try menu.update(&men, &game, random);
         }
 
         rl.endDrawing();

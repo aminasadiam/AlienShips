@@ -50,6 +50,7 @@ pub fn update(g: *main.Game, menu: *men.Menu) void {
             if (g.player.health < 100) {
                 g.player.health += 30;
                 g.health.active = false;
+                rl.playSound(g.sound.healing);
             }
         }
     }
@@ -59,6 +60,7 @@ pub fn update(g: *main.Game, menu: *men.Menu) void {
         if (g.player.x < g.shield.x + 10 and g.player.x + 30 > g.shield.x and g.player.y < g.shield.y + 10 and g.player.y + 15 > g.shield.y) {
             g.shield.active = false;
             g.player.shield = true;
+            rl.playSound(g.sound.shield_fill);
         }
     }
 
@@ -67,6 +69,7 @@ pub fn update(g: *main.Game, menu: *men.Menu) void {
         if (g.player.shieldTimer == 0) {
             g.player.shield = false;
             g.player.shieldTimer = 10;
+            rl.playSound(g.sound.shield_empty);
         }
     }
 
@@ -76,6 +79,7 @@ pub fn update(g: *main.Game, menu: *men.Menu) void {
             if (g.player.x < e.x + 20 and g.player.x + 30 > e.x and g.player.y < e.y + 20 and g.player.y + 15 > e.y) {
                 if (!g.player.shield) {
                     g.player.health -= 10;
+                    rl.playSound(g.sound.damage);
                 }
                 e.active = false;
                 e.respawnDelay = 300; // Set respawn delay after enemy dies
@@ -90,6 +94,7 @@ pub fn update(g: *main.Game, menu: *men.Menu) void {
                 if (e.active) {
                     if (b.x < e.x + 20 and b.x > e.x and b.y < e.y + 20 and b.y > e.y) {
                         e.active = false;
+                        rl.playSound(g.sound.explosion);
                         b.speed = 0;
                         e.respawnDelay = 300; // Set respawn delay after enemy dies
                     }
@@ -104,6 +109,7 @@ pub fn update(g: *main.Game, menu: *men.Menu) void {
             if (g.player.x < b.x + 5 and g.player.x + 30 > b.x and g.player.y < b.y + 5 and g.player.y + 15 > b.y) {
                 if (!g.player.shield) {
                     g.player.health -= 10;
+                    rl.playSound(g.sound.damage);
                 }
                 b.speed = 0;
             }
@@ -113,5 +119,6 @@ pub fn update(g: *main.Game, menu: *men.Menu) void {
     // Game Over
     if (g.player.health <= 0) {
         menu.state = men.Menu.State.GameOver;
+        rl.playSound(g.sound.gameover);
     }
 }
